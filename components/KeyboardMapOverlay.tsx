@@ -17,41 +17,44 @@ const KeyboardMapOverlay: React.FC<KeyboardMapOverlayProps> = ({
 
   if (!isVisible) return null;
 
-  // Group keys by row for visual layout
-  const topRow = ['w', 'e', 't', 'y', 'u', 'o', 'p', '['];
-  const middleRow = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'"];
-  const bottomRow = ['z', 'x', 'c', 'v', 'b', 'n', 'm'];
+  // Keyboard layout rows - organized for visual representation
+  const numberRow = ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
+  const qwertyRow = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']'];
+  const asdfRow = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'"];
+  const zxcvRow = ['z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/'];
 
-  const KeyButton: React.FC<{ keyChar: string; className?: string }> = ({ keyChar, className = '' }) => {
+  const KeyButton: React.FC<{ keyChar: string; small?: boolean }> = ({ keyChar, small = false }) => {
     const mapping = KEYBOARD_MAP[keyChar];
     const isPressed = pressedKeys.has(keyChar);
     const isBlack = mapping?.isBlack;
+    const hasMidi = !!mapping;
     
-    if (!mapping) {
-      return <div className={`w-10 h-10 ${className}`} />;
-    }
+    const displayKey = keyChar === '`' ? '`' : keyChar === ';' ? ';' : keyChar === "'" ? "'" : keyChar;
 
     return (
       <div 
         className={`
           relative flex flex-col items-center justify-center
-          w-10 h-10 rounded-lg font-mono text-xs font-bold
-          transition-all duration-100 transform
-          ${isBlack 
-            ? isPressed 
-              ? 'bg-purple-400 text-slate-900 scale-95 shadow-inner' 
-              : 'bg-slate-800 text-purple-300 border border-purple-500/30 hover:bg-slate-700'
-            : isPressed 
-              ? 'bg-cyan-400 text-slate-900 scale-95 shadow-inner' 
-              : 'bg-slate-200 text-slate-800 border border-slate-300 hover:bg-white'
+          ${small ? 'w-7 h-8' : 'w-8 h-9'} rounded-md font-mono text-xs font-bold
+          transition-all duration-75 transform
+          ${!hasMidi 
+            ? 'bg-slate-800/50 text-slate-600 border border-slate-700/30'
+            : isBlack 
+              ? isPressed 
+                ? 'bg-purple-400 text-slate-900 scale-95 shadow-inner shadow-purple-300' 
+                : 'bg-slate-800 text-purple-300 border border-purple-500/40 hover:bg-slate-700'
+              : isPressed 
+                ? 'bg-cyan-400 text-slate-900 scale-95 shadow-inner shadow-cyan-300' 
+                : 'bg-slate-100 text-slate-800 border border-slate-300 hover:bg-white'
           }
-          ${className}
         `}
       >
-        <span className="uppercase">{keyChar === ';' ? ';' : keyChar === "'" ? "'" : keyChar}</span>
-        <span className={`text-[10px] font-normal ${isBlack ? 'text-purple-200' : 'text-slate-500'}`}>
-          {mapping.label}
-        </span>
+        <span className="uppercase text-[10px]">{displayKey}</span>
+        {hasMidi && (
+          <span className={`text-[8px] font-normal ${isBlack ? 'text-purple-200/80' : 'text-slate-500'}`}>
+            {mapping.label.replace('#', '♯')}
+          </span>
+        )}
       </div>
     );
   };
@@ -60,10 +63,11 @@ const KeyboardMapOverlay: React.FC<KeyboardMapOverlayProps> = ({
     <div 
       className={`
         fixed bottom-36 right-4 z-50
-        backdrop-blur-xl bg-slate-900/90 
+        backdrop-blur-xl bg-slate-900/95 
         rounded-2xl shadow-2xl shadow-black/50
         border border-slate-700/50
         transition-all duration-300 ease-out
+        max-w-[95vw]
         ${isExpanded ? 'w-auto' : 'w-14'}
       `}
     >
@@ -95,53 +99,58 @@ const KeyboardMapOverlay: React.FC<KeyboardMapOverlayProps> = ({
 
       {/* Content */}
       {isExpanded && (
-        <div className="p-4 space-y-4">
-          {/* Main keyboard layout */}
-          <div className="space-y-1.5">
-            {/* Top row - Black keys */}
-            <div className="flex gap-1 pl-5">
-              {topRow.map((key, i) => (
-                <React.Fragment key={key}>
-                  <KeyButton keyChar={key} />
-                  {/* Spacing for keyboard layout */}
-                  {(i === 1 || i === 4) && <div className="w-10" />}
-                </React.Fragment>
+        <div className="p-3 space-y-3">
+          {/* Keyboard layout */}
+          <div className="space-y-1">
+            {/* Number row - Octave 2 */}
+            <div className="flex gap-0.5 justify-center">
+              {numberRow.map(key => (
+                <KeyButton key={key} keyChar={key} small />
               ))}
             </div>
             
-            {/* Middle row - White keys (main octaves) */}
-            <div className="flex gap-1">
-              {middleRow.map(key => (
-                <KeyButton key={key} keyChar={key} />
+            {/* QWERTY row - Octave 4 & 5 */}
+            <div className="flex gap-0.5 justify-center pl-3">
+              {qwertyRow.map(key => (
+                <KeyButton key={key} keyChar={key} small />
               ))}
             </div>
             
-            {/* Bottom row - Lower octave */}
-            <div className="flex gap-1 pl-2">
-              {bottomRow.map(key => (
-                <KeyButton key={key} keyChar={key} />
+            {/* ASDF row - Black keys for Octave 3 & alternative */}
+            <div className="flex gap-0.5 justify-center pl-6">
+              {asdfRow.map(key => (
+                <KeyButton key={key} keyChar={key} small />
+              ))}
+            </div>
+            
+            {/* ZXCV row - Octave 3 & extended */}
+            <div className="flex gap-0.5 justify-center pl-9">
+              {zxcvRow.map(key => (
+                <KeyButton key={key} keyChar={key} small />
               ))}
             </div>
           </div>
 
           {/* Legend */}
           <div className="flex items-center justify-center gap-4 pt-2 border-t border-slate-700/50">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-slate-200 border border-slate-300" />
-              <span className="text-xs text-slate-400">White Keys</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-slate-100 border border-slate-300" />
+              <span className="text-[10px] text-slate-400">White</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-slate-800 border border-purple-500/30" />
-              <span className="text-xs text-slate-400">Black Keys</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-slate-800 border border-purple-500/40" />
+              <span className="text-[10px] text-slate-400">Black</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-slate-800/50 border border-slate-700/30" />
+              <span className="text-[10px] text-slate-500">Unmapped</span>
             </div>
           </div>
 
           {/* Quick tip */}
-          <div className="text-center">
-            <p className="text-[10px] text-slate-500">
-              Press any key to play • 2.5 octaves available
-            </p>
-          </div>
+          <p className="text-center text-[9px] text-slate-500">
+            Z-M = C3-B3 • Q-] = C4-G5 • Press any key to play
+          </p>
         </div>
       )}
     </div>

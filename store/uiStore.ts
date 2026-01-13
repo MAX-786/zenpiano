@@ -20,6 +20,11 @@ interface UIStore {
   keyboardModeEnabled: boolean;
   showKeyboardMap: boolean;
   
+  // Label Display Options
+  showPianoLabels: boolean;      // Show note names on piano keys
+  showKeyboardShortcuts: boolean; // Show keyboard shortcuts on piano keys
+  showNoteLabels: boolean;        // Show note names on falling notes
+  
   // Actions
   setCurrentView: (view: View) => void;
   setShowCoach: (show: boolean) => void;
@@ -33,6 +38,11 @@ interface UIStore {
   toggleKeyboardMode: () => void;
   setShowKeyboardMap: (show: boolean) => void;
   toggleKeyboardMap: () => void;
+  
+  // Label Actions
+  togglePianoLabels: () => void;
+  toggleKeyboardShortcuts: () => void;
+  toggleNoteLabels: () => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -44,6 +54,9 @@ export const useUIStore = create<UIStore>()(
       showProgressBar: true,
       keyboardModeEnabled: false,
       showKeyboardMap: false,
+      showPianoLabels: true,
+      showKeyboardShortcuts: true,
+      showNoteLabels: true,
 
       setCurrentView: (currentView) => set({ currentView }),
       
@@ -72,6 +85,18 @@ export const useUIStore = create<UIStore>()(
       toggleKeyboardMap: () => set((state) => ({ 
         showKeyboardMap: !state.showKeyboardMap 
       })),
+      
+      togglePianoLabels: () => set((state) => ({ 
+        showPianoLabels: !state.showPianoLabels 
+      })),
+      
+      toggleKeyboardShortcuts: () => set((state) => ({ 
+        showKeyboardShortcuts: !state.showKeyboardShortcuts 
+      })),
+      
+      toggleNoteLabels: () => set((state) => ({ 
+        showNoteLabels: !state.showNoteLabels 
+      })),
     }),
     {
       name: 'zenpiano-ui',
@@ -82,6 +107,9 @@ export const useUIStore = create<UIStore>()(
         showProgressBar: state.showProgressBar,
         currentView: state.currentView,
         keyboardModeEnabled: state.keyboardModeEnabled,
+        showPianoLabels: state.showPianoLabels,
+        showKeyboardShortcuts: state.showKeyboardShortcuts,
+        showNoteLabels: state.showNoteLabels,
       }),
     }
   )

@@ -2,6 +2,14 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Song, Note, GameState, MidiLogEntry } from '../types';
 import { COLORS, VISUALIZER_CONFIG } from '../constants';
 
+// Helper to convert MIDI note to note name
+const midiToNoteName = (midi: number): string => {
+  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const octave = Math.floor(midi / 12) - 1;
+  const noteName = noteNames[midi % 12];
+  return `${noteName}${octave}`;
+};
+
 interface VisualizerProps {
   song: Song;
   activeNotes: Set<number>;
@@ -10,6 +18,7 @@ interface VisualizerProps {
   onLogEntry: (entry: MidiLogEntry) => void;
   onProgress: (time: number) => void;
   setGameState: (state: GameState) => void;
+  showNoteLabels?: boolean;
 }
 
 const Visualizer: React.FC<VisualizerProps> = ({ 
@@ -19,7 +28,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
   onSongComplete,
   onLogEntry,
   onProgress,
-  setGameState
+  setGameState,
+  showNoteLabels = true,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentTimeRef = useRef(0);
@@ -137,7 +147,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
       // --- DRAWING ---
 
-      // Background
+      // Background - always draw
       ctx.fillStyle = COLORS.polarNight.darker;
       ctx.fillRect(0, 0, width, height);
 
@@ -149,15 +159,23 @@ const Visualizer: React.FC<VisualizerProps> = ({
       ctx.moveTo(0, hitLineY);
       ctx.lineTo(width, hitLineY);
       ctx.stroke();
+      
+      // Add subtle glow line
+      ctx.strokeStyle = 'rgba(136, 192, 208, 0.3)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(0, hitLineY);
+      ctx.lineTo(width, hitLineY);
+      ctx.stroke();
 
       // Draw Notes
       // Visible Range: [currentTime - 1, currentTime + lookAhead]
       const minVisibleTime = currentTimeRef.current - 1;
       const maxVisibleTime = currentTimeRef.current + VISUALIZER_CONFIG.lookAhead;
 
-      // Map MIDI key to X position (assume range 21 to 108)
-      const minMidi = 21;
-      const maxMidi = 108;
+      // Map MIDI key to X position (range 36 to 96 for 61-key keyboard)
+      const minMidi = 36;
+      const maxMidi = 96;
       const keyWidth = width / (maxMidi - minMidi + 1);
 
       notesRef.current.forEach(note => {
@@ -171,41 +189,71 @@ const Visualizer: React.FC<VisualizerProps> = ({
         
         const timeDiff = note.time - currentTimeRef.current;
         const y = hitLineY - (timeDiff * pixelsPerSecond);
-        const noteHeight = note.duration * pixelsPerSecond;
+        const noteHeight = Math.max(note.duration * pixelsPerSecond, 20); // Minimum height for visibility
         const x = (note.midi - minMidi) * keyWidth;
+        const isBlack = [1, 3, 6, 8, 10].includes(note.midi % 12);
 
         // Color Logic
-        let color = COLORS.frost.blue;
+        let color = isBlack ? COLORS.aurora.purple : COLORS.frost.cyan;
         if (note.played) color = COLORS.aurora.green;
         else if (isWaiting && note.time <= currentTimeRef.current + 0.05 && !note.played) {
              // This is the note we are waiting for
              color = COLORS.aurora.yellow;
         }
 
-        // Draw Note Rect
-        // We draw "up" from y if we think of duration, but typically piano rolls draw length upwards if falling?
-        // Actually, if it falls, the "Start" is the bottom of the block.
-        // So the block extends from Y (start) upwards to Y - height.
+        // Draw Note Rect with rounded corners
+        const noteX = x + 2;
+        const noteY = y - noteHeight;
+        const noteW = keyWidth - 4;
+        const noteH = noteHeight;
+        const radius = 4;
         
         ctx.fillStyle = color;
-        // Rounded rect mock
-        ctx.fillRect(x + 1, y - noteHeight, keyWidth - 2, noteHeight);
+        ctx.beginPath();
+        ctx.roundRect(noteX, noteY, noteW, noteH, radius);
+        ctx.fill();
         
         // Glow if active/waiting
-        if ((isWaiting && note.time <= currentTimeRef.current + 0.05 && !note.played) || note.played && (note.time + note.duration > currentTimeRef.current)) {
+        if ((isWaiting && note.time <= currentTimeRef.current + 0.05 && !note.played) || (note.played && (note.time + note.duration > currentTimeRef.current))) {
            ctx.shadowBlur = 15;
            ctx.shadowColor = color;
-           ctx.fillRect(x + 1, y - noteHeight, keyWidth - 2, noteHeight);
+           ctx.beginPath();
+           ctx.roundRect(noteX, noteY, noteW, noteH, radius);
+           ctx.fill();
            ctx.shadowBlur = 0;
+        }
+        
+        // Draw note label if enabled and note is tall enough
+        if (showNoteLabels && noteH > 18 && noteW > 12) {
+          const noteName = midiToNoteName(note.midi);
+          ctx.save();
+          ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          // Text color based on background
+          if (note.played) {
+            ctx.fillStyle = '#1a472a'; // Dark green for played
+          } else if (isWaiting && note.time <= currentTimeRef.current + 0.05 && !note.played) {
+            ctx.fillStyle = '#5c4813'; // Dark yellow for waiting
+          } else {
+            ctx.fillStyle = isBlack ? '#4a2040' : '#1a3a4a'; // Dark purple/cyan
+          }
+          
+          // Draw text centered in the note
+          const textX = noteX + noteW / 2;
+          const textY = noteY + noteH / 2;
+          ctx.fillText(noteName, textX, textY);
+          ctx.restore();
         }
       });
       
       // Draw "Waiting" Overlay if paused
       if (isWaiting && Math.floor(timestamp / 500) % 2 === 0) { // Blink
-         ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+         ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
          ctx.fillRect(0, 0, width, height);
          
-         ctx.font = "20px Inter";
+         ctx.font = "18px Inter, system-ui, sans-serif";
          ctx.fillStyle = COLORS.snowStorm.light;
          ctx.textAlign = "center";
          ctx.fillText("Waiting for input...", width / 2, height / 2);
@@ -219,7 +267,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gameState, activeNotes, song, setGameState, onSongComplete, onLogEntry, onProgress]);
+  }, [gameState, activeNotes, song, setGameState, onSongComplete, onLogEntry, onProgress, showNoteLabels]);
 
   return <canvas ref={canvasRef} className="w-full h-full block" />;
 };

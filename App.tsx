@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { Play, Pause, RefreshCw, Maximize2, Minimize2, Zap, ArrowLeft, Keyboard, Map } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Play, Pause, RefreshCw, Maximize2, Minimize2, Zap, ArrowLeft, Keyboard, Map, Settings, Type, Music } from 'lucide-react';
 import { useMidi } from './hooks/useMidi';
 import { useKeyboardPiano } from './hooks/useKeyboardPiano';
 import { useAudio } from './hooks/useAudio';
@@ -56,7 +56,16 @@ function App() {
     toggleKeyboardMode,
     toggleKeyboardMap,
     setShowKeyboardMap,
+    showPianoLabels,
+    showKeyboardShortcuts,
+    showNoteLabels,
+    togglePianoLabels,
+    toggleKeyboardShortcuts,
+    toggleNoteLabels,
   } = useUIStore();
+  
+  // Settings panel state
+  const [showSettings, setShowSettings] = useState(false);
   
   // MIDI and Audio
   const { activeNotes: midiNotes, error: midiError } = useMidi();
@@ -256,6 +265,17 @@ function App() {
                )}
              </div>
 
+             {/* Settings Button */}
+             <button 
+               onClick={() => setShowSettings(!showSettings)}
+               className={`p-2 rounded-lg transition-all duration-200 ${showSettings 
+                 ? 'bg-slate-600 text-white' 
+                 : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+               title="Display Settings"
+             >
+               <Settings size={18} />
+             </button>
+
              <button 
                 onClick={() => setShowCoach(!showCoach)} 
                 className={`p-2 rounded-lg transition-colors ${showCoach ? 'bg-purple-500/20 text-purple-300' : 'text-slate-400 hover:text-white'}`}
@@ -328,6 +348,7 @@ function App() {
               onLogEntry={handleLogEntry}
               onProgress={setProgress}
               setGameState={setGameState}
+              showNoteLabels={showNoteLabels}
             />
             
             {gameState === GameState.PLAYING && (
@@ -339,7 +360,12 @@ function App() {
          </div>
 
          <div className="flex-shrink-0 z-30">
-            <Piano activeNotes={activeNotes} />
+            <Piano 
+              activeNotes={activeNotes}
+              showLabels={showPianoLabels}
+              showKeyboardShortcuts={showKeyboardShortcuts}
+              keyboardModeEnabled={keyboardModeEnabled}
+            />
          </div>
 
          <Coach log={sessionLog} isVisible={showCoach && !isZenMode} />
@@ -350,6 +376,72 @@ function App() {
            onClose={() => setShowKeyboardMap(false)}
            pressedKeys={pressedKeys}
          />
+         
+         {/* Settings Panel */}
+         {showSettings && !isZenMode && (
+           <div className="absolute bottom-36 left-4 z-50 backdrop-blur-xl bg-slate-900/95 rounded-2xl shadow-2xl shadow-black/50 border border-slate-700/50 p-4 w-64">
+             <div className="flex items-center justify-between mb-4">
+               <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                 <Settings size={16} className="text-cyan-400" />
+                 Display Settings
+               </h3>
+               <button 
+                 onClick={() => setShowSettings(false)}
+                 className="text-slate-400 hover:text-white transition-colors"
+               >
+                 ×
+               </button>
+             </div>
+             
+             <div className="space-y-3">
+               {/* Piano Labels Toggle */}
+               <label className="flex items-center justify-between cursor-pointer group">
+                 <span className="text-sm text-slate-300 flex items-center gap-2">
+                   <Type size={14} className="text-slate-500" />
+                   Piano Note Labels
+                 </span>
+                 <button 
+                   onClick={togglePianoLabels}
+                   className={`w-10 h-5 rounded-full transition-colors relative ${showPianoLabels ? 'bg-cyan-500' : 'bg-slate-600'}`}
+                 >
+                   <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showPianoLabels ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                 </button>
+               </label>
+               
+               {/* Keyboard Shortcuts Toggle */}
+               <label className="flex items-center justify-between cursor-pointer group">
+                 <span className="text-sm text-slate-300 flex items-center gap-2">
+                   <Keyboard size={14} className="text-slate-500" />
+                   Key Shortcuts
+                 </span>
+                 <button 
+                   onClick={toggleKeyboardShortcuts}
+                   className={`w-10 h-5 rounded-full transition-colors relative ${showKeyboardShortcuts ? 'bg-cyan-500' : 'bg-slate-600'}`}
+                 >
+                   <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showKeyboardShortcuts ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                 </button>
+               </label>
+               
+               {/* Note Labels Toggle */}
+               <label className="flex items-center justify-between cursor-pointer group">
+                 <span className="text-sm text-slate-300 flex items-center gap-2">
+                   <Music size={14} className="text-slate-500" />
+                   Falling Note Labels
+                 </span>
+                 <button 
+                   onClick={toggleNoteLabels}
+                   className={`w-10 h-5 rounded-full transition-colors relative ${showNoteLabels ? 'bg-cyan-500' : 'bg-slate-600'}`}
+                 >
+                   <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showNoteLabels ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                 </button>
+               </label>
+             </div>
+             
+             <p className="text-[10px] text-slate-500 mt-3 pt-3 border-t border-slate-700">
+               Labels help identify notes while learning
+             </p>
+           </div>
+         )}
       </main>
       
       <div className="h-1 bg-slate-800 w-full">
