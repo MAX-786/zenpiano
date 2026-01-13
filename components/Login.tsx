@@ -20,7 +20,7 @@ const Login: React.FC = () => {
     setLoading(true);
     try {
       const response = await AuthService.login(username, password);
-      login(response.user, response.token);
+      login(response.user, response.accessToken, response.refreshToken, response.expiresIn);
       setCurrentView(View.DASHBOARD);
     } catch (error) {
       console.error(error);

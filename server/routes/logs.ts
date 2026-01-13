@@ -17,6 +17,14 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'logs array is required' });
     }
 
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+      return res.status(400).json({ 
+        error: 'Invalid session ID format',
+        code: 'INVALID_SESSION_ID'
+      });
+    }
+
     const logsWithSession = logs.map((log: any) => ({
       sessionId: new mongoose.Types.ObjectId(sessionId),
       timestamp: new Date(log.timestamp),

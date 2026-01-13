@@ -4,51 +4,86 @@ import { User } from '../types';
 
 interface AuthState {
   user: User | null;
-  token: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  tokenExpiresAt: number | null; // Unix timestamp
   isAuthenticated: boolean;
   
   // Actions
   setUser: (user: User) => void;
-  setToken: (token: string) => void;
-  login: (user: User, token: string) => void;
+  setTokens: (accessToken: string, refreshToken: string, expiresIn: number) => void;
+  login: (user: User, accessToken: string, refreshToken: string, expiresIn: number) => void;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
+  isTokenExpired: () => boolean;
+  shouldRefreshToken: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
-      token: null,
+      accessToken: null,
+      refreshToken: null,
+      tokenExpiresAt: null,
       isAuthenticated: false,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       
-      setToken: (token) => set({ token }),
+      setTokens: (accessToken, refreshToken, expiresIn) => {
+        const expiresAt = Date.now() + expiresIn * 1000; // Convert to milliseconds
+        set({ 
+          accessToken, 
+          refreshToken, 
+          tokenExpiresAt: expiresAt 
+        });
+      },
       
-      login: (user, token) => set({ 
-        user, 
-        token, 
-        isAuthenticated: true 
-      }),
+      login: (user, accessToken, refreshToken, expiresIn) => {
+        const expiresAt = Date.now() + expiresIn * 1000;
+        set({ 
+          user, 
+          accessToken,
+          refreshToken,
+          tokenExpiresAt: expiresAt,
+          isAuthenticated: true 
+        });
+      },
       
       logout: () => set({ 
         user: null, 
-        token: null, 
+        accessToken: null,
+        refreshToken: null,
+        tokenExpiresAt: null,
         isAuthenticated: false 
       }),
       
       updateUser: (updates) => set((state) => ({
         user: state.user ? { ...state.user, ...updates } : null
       })),
+
+      isTokenExpired: () => {
+        const { tokenExpiresAt } = get();
+        if (!tokenExpiresAt) return true;
+        return Date.now() >= tokenExpiresAt;
+      },
+
+      shouldRefreshToken: () => {
+        const { tokenExpiresAt } = get();
+        if (!tokenExpiresAt) return false;
+        // Refresh if token expires in less than 2 minutes
+        return Date.now() >= tokenExpiresAt - 2 * 60 * 1000;
+      }
     }),
     {
       name: 'zenpiano-auth',
       storage: createJSONStorage(() => localStorage),
-      // Only persist essential auth data
+      // Persist all auth data including tokens
       partialize: (state) => ({
         user: state.user,
-        token: state.token,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        tokenExpiresAt: state.tokenExpiresAt,
         isAuthenticated: state.isAuthenticated,
       }),
     }

@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CoachInsight, MidiLogEntry, Song, Note } from "../types";
+import { apiRequest } from "./apiClient";
 
 const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
@@ -11,14 +12,9 @@ const logTokenUsage = async (usageMetadata: any) => {
     const authStorage = localStorage.getItem('zenpiano-auth');
     const authData = authStorage ? JSON.parse(authStorage) : null;
     const userId = authData?.state?.user?.id || 'demo-user-id';
-    const token = authData?.state?.token;
     
-    await fetch('/api/tokens', {
+    await apiRequest('/api/tokens', {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
       body: JSON.stringify({
         userId,
         promptTokens: usageMetadata.promptTokenCount || 0,

@@ -1,23 +1,18 @@
 import { User, Session, MidiLogEntry } from '../types';
+import { apiRequest } from './apiClient';
 
 // In a real environment, this points to your backend
 const API_BASE = '/api'; 
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-  // Import store dynamically to avoid circular dependencies
-  const token = localStorage.getItem('zenpiano-auth');
-  const authData = token ? JSON.parse(token) : null;
-  
-  return {
-    'Content-Type': 'application/json',
-    ...(authData?.state?.token ? { 'Authorization': `Bearer ${authData.state.token}` } : {})
-  };
-};
-
 export const AuthService = {
-  login: async (username: string, password: string): Promise<{ user: User; token: string }> => {
+  login: async (username: string, password: string): Promise<{ 
+    user: User; 
+    accessToken: string; 
+    refreshToken: string;
+    expiresIn: number;
+  }> => {
     try {
+      // Don't use apiRequest here as it adds auth header
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -25,54 +20,48 @@ export const AuthService = {
       });
       
       if (!response.ok) {
-         // Fallback for demo environment if API is missing
-         console.warn("Backend unreachable, returning mock user");
-         const mockToken = 'demo-token-' + Math.random().toString(36);
-         return {
-           user: {
-             id: 'demo-user-id',
-             username,
-             skillLevel: 'Beginner'
-           },
-           token: mockToken
-         };
+         // Throw error
+         console.error("Login failed", response.statusText);
+         return Promise.reject(new Error('Login failed'));
+         
       }
       return await response.json();
     } catch (e) {
       console.warn("Network error, returning mock user for UI demo");
-      const mockToken = 'demo-token-' + Math.random().toString(36);
+      const mockToken = 'demo-access-token-' + Math.random().toString(36);
+      const mockRefresh = 'demo-refresh-token-' + Math.random().toString(36);
       return {
         user: {
            id: 'demo-user-id',
            username,
            skillLevel: 'Beginner'
         },
-        token: mockToken
+        accessToken: mockToken,
+        refreshToken: mockRefresh,
+        expiresIn: 900 // 15 minutes
       };
     }
   },
   
-  logout: async () => {
+  logout: async (refreshToken: string) => {
     try {
-      await fetch(`${API_BASE}/auth/logout`, { 
+      await apiRequest(`${API_BASE}/auth/logout`, { 
         method: 'POST',
-        headers: getAuthHeaders()
+        body: JSON.stringify({ refreshToken })
       });
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e); 
+    }
   }
 };
 
 export const SessionService = {
   saveSession: async (session: Omit<Session, 'id'>, logs: MidiLogEntry[]): Promise<string> => {
     try {
-      const response = await fetch(`${API_BASE}/sessions`, {
+      const data = await apiRequest<{ id: string }>(`${API_BASE}/sessions`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ session, logs })
       });
-      
-      if (!response.ok) throw new Error("Failed to save session");
-      const data = await response.json();
       return data.id;
     } catch (e) {
       console.error("Save session failed (Backend missing in preview)", e);
@@ -82,23 +71,18 @@ export const SessionService = {
 
   syncLogs: async (sessionId: string, logs: MidiLogEntry[]) => {
     try {
-        await fetch(`${API_BASE}/logs`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ sessionId, logs })
-        });
+      await apiRequest(`${API_BASE}/logs`, {
+        method: 'POST',
+        body: JSON.stringify({ sessionId, logs })
+      });
     } catch (e) {
-        console.error("Log sync failed");
+      console.error("Log sync failed", e);
     }
   },
 
   getUserStats: async (userId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/users/${userId}/stats`, {
-        headers: getAuthHeaders()
-      });
-      if (!response.ok) throw new Error("Failed to fetch stats");
-      return await response.json();
+      return await apiRequest(`${API_BASE}/users/${userId}/stats`);
     } catch (e) {
       console.warn("Fetch stats failed (Backend missing), returning mock stats");
       // Return mock stats so the dashboard doesn't crash in preview
@@ -116,11 +100,7 @@ export const SessionService = {
 export const TokenService = {
   getStats: async (userId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/tokens/stats/${userId}`, {
-        headers: getAuthHeaders()
-      });
-      if (!response.ok) throw new Error("Failed to fetch token stats");
-      return await response.json();
+      return await apiRequest(`${API_BASE}/tokens/stats/${userId}`);
     } catch (e) {
       console.warn("Fetch token stats failed, returning mock data");
       return {

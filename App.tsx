@@ -7,7 +7,8 @@ import Visualizer from './components/Visualizer';
 import Coach from './components/Coach';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import { SessionService } from './services/db';
+import { SessionService, AuthService } from './services/db';
+import { initializeAuth } from './services/apiClient';
 import { SAMPLE_SONG, COLORS } from './constants';
 import { GameState, MidiLogEntry, Song } from './types';
 import { useAuthStore } from './store/authStore';
@@ -17,7 +18,8 @@ import { useUIStore, View } from './store/uiStore';
 
 function App() {
   // Zustand Stores
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, refreshToken, isAuthenticated } = useAuthStore();
+  const logout = useAuthStore((state) => state.logout);
   const { 
     gameState, 
     currentSong, 
@@ -52,6 +54,20 @@ function App() {
   // MIDI and Audio
   const { activeNotes, error: midiError } = useMidi();
   const { startAudio } = useAudio(activeNotes);
+
+  // Initialize auth on mount
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
+  // Handle logout with refresh token cleanup
+  const handleLogout = async () => {
+    if (refreshToken) {
+      await AuthService.logout(refreshToken);
+    }
+    logout();
+    setCurrentView(View.LOGIN);
+  };
 
   // --- Navigation Handlers ---
   const navigateToPractice = (song: Song = SAMPLE_SONG) => {
@@ -141,7 +157,7 @@ function App() {
              <button onClick={() => navigateToPractice(SAMPLE_SONG)} className="px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-600 text-sm">
                 Free Practice
              </button>
-             <button onClick={() => useAuthStore.getState().logout()} className="text-slate-400 hover:text-white text-sm">
+             <button onClick={handleLogout} className="text-slate-400 hover:text-white text-sm">
                Log Out
              </button>
           </div>

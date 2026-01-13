@@ -9,7 +9,17 @@ const router = Router();
 // GET /api/users/:id/stats - Get user statistics
 router.get('/:id/stats', async (req: Request, res: Response) => {
   try {
-    const userId = new mongoose.Types.ObjectId(req.params.id);
+    const userIdParam = req.params.id;
+    
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(userIdParam)) {
+      return res.status(400).json({ 
+        error: 'Invalid user ID format',
+        code: 'INVALID_USER_ID'
+      });
+    }
+    
+    const userId = new mongoose.Types.ObjectId(userIdParam);
 
     // Get all sessions for the user
     const sessions = await Session.find({ userId }).sort({ startTime: -1 });

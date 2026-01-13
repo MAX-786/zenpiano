@@ -14,6 +14,14 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Session data with userId is required' });
     }
 
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(session.userId)) {
+      return res.status(400).json({ 
+        error: 'Invalid user ID format',
+        code: 'INVALID_USER_ID'
+      });
+    }
+
     // Create the session
     const newSession = await Session.create({
       userId: new mongoose.Types.ObjectId(session.userId),
@@ -53,6 +61,13 @@ router.post('/', async (req: Request, res: Response) => {
 // GET /api/sessions/:id - Get a specific session
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ 
+        error: 'Invalid session ID format',
+        code: 'INVALID_SESSION_ID'
+      });
+    }
+
     const session = await Session.findById(req.params.id);
     
     if (!session) {
