@@ -16,6 +16,10 @@ interface UIStore {
   showMidiStatus: boolean;
   showProgressBar: boolean;
   
+  // Keyboard Piano Mode
+  keyboardModeEnabled: boolean;
+  showKeyboardMap: boolean;
+  
   // Actions
   setCurrentView: (view: View) => void;
   setShowCoach: (show: boolean) => void;
@@ -23,6 +27,12 @@ interface UIStore {
   navigateTo: (view: View) => void;
   setShowMidiStatus: (show: boolean) => void;
   setShowProgressBar: (show: boolean) => void;
+  
+  // Keyboard Piano Actions
+  setKeyboardModeEnabled: (enabled: boolean) => void;
+  toggleKeyboardMode: () => void;
+  setShowKeyboardMap: (show: boolean) => void;
+  toggleKeyboardMap: () => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -32,6 +42,8 @@ export const useUIStore = create<UIStore>()(
       showCoach: false,
       showMidiStatus: true,
       showProgressBar: true,
+      keyboardModeEnabled: false,
+      showKeyboardMap: false,
 
       setCurrentView: (currentView) => set({ currentView }),
       
@@ -46,6 +58,20 @@ export const useUIStore = create<UIStore>()(
       setShowMidiStatus: (showMidiStatus) => set({ showMidiStatus }),
       
       setShowProgressBar: (showProgressBar) => set({ showProgressBar }),
+      
+      setKeyboardModeEnabled: (keyboardModeEnabled) => set({ keyboardModeEnabled }),
+      
+      toggleKeyboardMode: () => set((state) => ({ 
+        keyboardModeEnabled: !state.keyboardModeEnabled,
+        // Auto-show keyboard map when enabling keyboard mode
+        showKeyboardMap: !state.keyboardModeEnabled ? true : state.showKeyboardMap
+      })),
+      
+      setShowKeyboardMap: (showKeyboardMap) => set({ showKeyboardMap }),
+      
+      toggleKeyboardMap: () => set((state) => ({ 
+        showKeyboardMap: !state.showKeyboardMap 
+      })),
     }),
     {
       name: 'zenpiano-ui',
@@ -55,6 +81,7 @@ export const useUIStore = create<UIStore>()(
         showMidiStatus: state.showMidiStatus,
         showProgressBar: state.showProgressBar,
         currentView: state.currentView,
+        keyboardModeEnabled: state.keyboardModeEnabled,
       }),
     }
   )

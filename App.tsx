@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect } from 'react';
-import { Play, Pause, RefreshCw, Maximize2, Minimize2, Zap, ArrowLeft } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { Play, Pause, RefreshCw, Maximize2, Minimize2, Zap, ArrowLeft, Keyboard, Map } from 'lucide-react';
 import { useMidi } from './hooks/useMidi';
+import { useKeyboardPiano } from './hooks/useKeyboardPiano';
 import { useAudio } from './hooks/useAudio';
 import Piano from './components/Piano';
 import Visualizer from './components/Visualizer';
 import Coach from './components/Coach';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import KeyboardMapOverlay from './components/KeyboardMapOverlay';
 import { SessionService, AuthService } from './services/db';
 import { initializeAuth } from './services/apiClient';
 import { SAMPLE_SONG, COLORS } from './constants';
@@ -48,11 +50,26 @@ function App() {
     showCoach, 
     setCurrentView, 
     setShowCoach, 
-    toggleCoach 
+    toggleCoach,
+    keyboardModeEnabled,
+    showKeyboardMap,
+    toggleKeyboardMode,
+    toggleKeyboardMap,
+    setShowKeyboardMap,
   } = useUIStore();
   
   // MIDI and Audio
-  const { activeNotes, error: midiError } = useMidi();
+  const { activeNotes: midiNotes, error: midiError } = useMidi();
+  const { activeNotes: keyboardNotes, pressedKeys } = useKeyboardPiano(keyboardModeEnabled);
+  
+  // Combine MIDI and keyboard notes
+  const activeNotes = useMemo(() => {
+    const combined = new Set<number>();
+    midiNotes.forEach(note => combined.add(note));
+    keyboardNotes.forEach(note => combined.add(note));
+    return combined;
+  }, [midiNotes, keyboardNotes]);
+  
   const { startAudio } = useAudio(activeNotes);
 
   // Initialize auth on mount
@@ -187,6 +204,11 @@ function App() {
             <span className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-300">
                {midiError ? 'MIDI Disconnected' : 'MIDI Connected'}
             </span>
+            {keyboardModeEnabled && (
+              <span className="text-xs px-2 py-1 rounded bg-gradient-to-r from-cyan-900/50 to-purple-900/50 text-cyan-300 border border-cyan-500/30">
+                ⌨️ Keyboard Active
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -210,6 +232,30 @@ function App() {
 
              <div className="w-px h-6 bg-slate-600 mx-2" />
 
+             {/* Keyboard Mode Toggle */}
+             <div className="flex items-center gap-1">
+               <button 
+                 onClick={toggleKeyboardMode}
+                 className={`p-2 rounded-lg transition-all duration-200 ${keyboardModeEnabled 
+                   ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-300 ring-1 ring-cyan-500/30' 
+                   : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                 title={keyboardModeEnabled ? 'Disable Keyboard Mode' : 'Enable Keyboard Mode'}
+               >
+                 <Keyboard size={20} />
+               </button>
+               {keyboardModeEnabled && (
+                 <button 
+                   onClick={toggleKeyboardMap}
+                   className={`p-2 rounded-lg transition-all duration-200 ${showKeyboardMap 
+                     ? 'bg-cyan-500/20 text-cyan-300' 
+                     : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                   title={showKeyboardMap ? 'Hide Key Map' : 'Show Key Map'}
+                 >
+                   <Map size={18} />
+                 </button>
+               )}
+             </div>
+
              <button 
                 onClick={() => setShowCoach(!showCoach)} 
                 className={`p-2 rounded-lg transition-colors ${showCoach ? 'bg-purple-500/20 text-purple-300' : 'text-slate-400 hover:text-white'}`}
@@ -229,13 +275,46 @@ function App() {
         </header>
       )}
 
-      {/* ZEN TOGGLE OVERLAY */}
+      {/* ZEN MODE FLOATING CONTROLS */}
       {isZenMode && (
-        <div className="absolute top-4 right-4 z-50 opacity-0 hover:opacity-100 transition-opacity">
-           <button onClick={toggleZenMode} className="p-3 bg-slate-800/80 backdrop-blur rounded-full text-white">
-             <Minimize2 size={24} />
-           </button>
+        <div className="absolute top-4 right-4 z-50 opacity-0 hover:opacity-100 transition-opacity duration-300">
+          <div className="flex items-center gap-2 p-2 bg-slate-800/80 backdrop-blur-lg rounded-2xl border border-slate-700/50">
+            {/* Keyboard toggle in Zen Mode */}
+            <button 
+              onClick={toggleKeyboardMode}
+              className={`p-2.5 rounded-xl transition-all duration-200 ${keyboardModeEnabled 
+                ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 text-cyan-300' 
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+              title={keyboardModeEnabled ? 'Disable Keyboard Mode' : 'Enable Keyboard Mode'}
+            >
+              <Keyboard size={20} />
+            </button>
+            {keyboardModeEnabled && (
+              <button 
+                onClick={toggleKeyboardMap}
+                className={`p-2.5 rounded-xl transition-all duration-200 ${showKeyboardMap 
+                  ? 'bg-cyan-500/30 text-cyan-300' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+                title={showKeyboardMap ? 'Hide Key Map' : 'Show Key Map'}
+              >
+                <Map size={18} />
+              </button>
+            )}
+            <div className="w-px h-6 bg-slate-600" />
+            <button onClick={toggleZenMode} className="p-2.5 rounded-xl hover:bg-slate-700/50 text-white transition-colors">
+              <Minimize2 size={20} />
+            </button>
+          </div>
         </div>
+      )}
+      
+      {/* Keyboard Map in Zen Mode */}
+      {isZenMode && keyboardModeEnabled && showKeyboardMap && (
+        <KeyboardMapOverlay 
+          isVisible={true}
+          onClose={() => setShowKeyboardMap(false)}
+          pressedKeys={pressedKeys}
+        />
       )}
 
       {/* MAIN CONTENT AREA */}
@@ -264,6 +343,13 @@ function App() {
          </div>
 
          <Coach log={sessionLog} isVisible={showCoach && !isZenMode} />
+         
+         {/* Keyboard Map Overlay */}
+         <KeyboardMapOverlay 
+           isVisible={keyboardModeEnabled && showKeyboardMap && !isZenMode}
+           onClose={() => setShowKeyboardMap(false)}
+           pressedKeys={pressedKeys}
+         />
       </main>
       
       <div className="h-1 bg-slate-800 w-full">
