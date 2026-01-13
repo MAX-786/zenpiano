@@ -1,0 +1,7 @@
+{
+  "name": "ZenPiano",
+  "description": "A minimalist, AI-powered piano learning application focusing on 'Wait Mode' and soothing aesthetics.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
