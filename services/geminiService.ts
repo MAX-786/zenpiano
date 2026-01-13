@@ -7,11 +7,18 @@ const ai = new GoogleGenAI({ apiKey });
 // Helper function to log token usage
 const logTokenUsage = async (usageMetadata: any) => {
   try {
-    const userId = localStorage.getItem('userId') || 'demo-user-id';
+    // Get userId from persisted auth store
+    const authStorage = localStorage.getItem('zenpiano-auth');
+    const authData = authStorage ? JSON.parse(authStorage) : null;
+    const userId = authData?.state?.user?.id || 'demo-user-id';
+    const token = authData?.state?.token;
     
     await fetch('/api/tokens', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({
         userId,
         promptTokens: usageMetadata.promptTokenCount || 0,

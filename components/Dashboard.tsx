@@ -1,22 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { User, Session, Song } from '../types';
+import { Session, Song } from '../types';
 import { SessionService, TokenService } from '../services/db';
 import { generatePredictiveExercise } from '../services/geminiService';
 import { Activity, Clock, Target, Play, Brain, BarChart3, Zap, TrendingUp } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 interface DashboardProps {
-  user: User;
   onPlaySong: (song: Song) => void; // Standard Play
   onPlayExercise: (song: Song) => void; // Predictive Play
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onPlaySong, onPlayExercise }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onPlaySong, onPlayExercise }) => {
+  const user = useAuthStore((state) => state.user);
   const [stats, setStats] = useState<any>(null);
   const [tokenStats, setTokenStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
+    
     Promise.all([
       SessionService.getUserStats(user.id),
       TokenService.getStats(user.id)
@@ -25,7 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onPlaySong, onPlayExercise 
       setTokenStats(tokenData);
       setLoading(false);
     });
-  }, [user.id]);
+  }, [user]);
 
   const handleGenerateExercise = async () => {
     setGenerating(true);
@@ -46,6 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onPlaySong, onPlayExercise 
   };
 
   if (loading) return <div className="p-8 text-white">Loading stats...</div>;
+  if (!user) return <div className="p-8 text-white">Please log in.</div>;
 
   return (
     <div className="flex-1 bg-slate-900 text-white p-8 overflow-y-auto">

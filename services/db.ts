@@ -3,8 +3,20 @@ import { User, Session, MidiLogEntry } from '../types';
 // In a real environment, this points to your backend
 const API_BASE = '/api'; 
 
+// Helper to get auth headers
+const getAuthHeaders = () => {
+  // Import store dynamically to avoid circular dependencies
+  const token = localStorage.getItem('zenpiano-auth');
+  const authData = token ? JSON.parse(token) : null;
+  
+  return {
+    'Content-Type': 'application/json',
+    ...(authData?.state?.token ? { 'Authorization': `Bearer ${authData.state.token}` } : {})
+  };
+};
+
 export const AuthService = {
-  login: async (username: string, password: string): Promise<User> => {
+  login: async (username: string, password: string): Promise<{ user: User; token: string }> => {
     try {
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -15,26 +27,37 @@ export const AuthService = {
       if (!response.ok) {
          // Fallback for demo environment if API is missing
          console.warn("Backend unreachable, returning mock user");
+         const mockToken = 'demo-token-' + Math.random().toString(36);
          return {
-           id: 'demo-user-id',
-           username,
-           skillLevel: 'Beginner'
+           user: {
+             id: 'demo-user-id',
+             username,
+             skillLevel: 'Beginner'
+           },
+           token: mockToken
          };
       }
       return await response.json();
     } catch (e) {
       console.warn("Network error, returning mock user for UI demo");
+      const mockToken = 'demo-token-' + Math.random().toString(36);
       return {
-         id: 'demo-user-id',
-         username,
-         skillLevel: 'Beginner'
+        user: {
+           id: 'demo-user-id',
+           username,
+           skillLevel: 'Beginner'
+        },
+        token: mockToken
       };
     }
   },
   
   logout: async () => {
     try {
-      await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+      await fetch(`${API_BASE}/auth/logout`, { 
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
     } catch (e) { console.error(e); }
   }
 };
@@ -44,7 +67,7 @@ export const SessionService = {
     try {
       const response = await fetch(`${API_BASE}/sessions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ session, logs })
       });
       
@@ -61,7 +84,7 @@ export const SessionService = {
     try {
         await fetch(`${API_BASE}/logs`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ sessionId, logs })
         });
     } catch (e) {
@@ -71,7 +94,9 @@ export const SessionService = {
 
   getUserStats: async (userId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/users/${userId}/stats`);
+      const response = await fetch(`${API_BASE}/users/${userId}/stats`, {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) throw new Error("Failed to fetch stats");
       return await response.json();
     } catch (e) {
@@ -91,7 +116,9 @@ export const SessionService = {
 export const TokenService = {
   getStats: async (userId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/tokens/stats/${userId}`);
+      const response = await fetch(`${API_BASE}/tokens/stats/${userId}`, {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) throw new Error("Failed to fetch token stats");
       return await response.json();
     } catch (e) {

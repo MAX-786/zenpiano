@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Play, Pause, RefreshCw, Maximize2, Minimize2, Zap, ArrowLeft, LayoutDashboard } from 'lucide-react';
+import React, { useCallback, useEffect } from 'react';
+import { Play, Pause, RefreshCw, Maximize2, Minimize2, Zap, ArrowLeft } from 'lucide-react';
 import { useMidi } from './hooks/useMidi';
 import { useAudio } from './hooks/useAudio';
 import Piano from './components/Piano';
@@ -9,145 +9,123 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import { SessionService } from './services/db';
 import { SAMPLE_SONG, COLORS } from './constants';
-import { GameState, MidiLogEntry, User, Song } from './types';
-
-// App Views
-enum View {
-  LOGIN = 'LOGIN',
-  DASHBOARD = 'DASHBOARD',
-  PRACTICE = 'PRACTICE'
-}
+import { GameState, MidiLogEntry, Song } from './types';
+import { useAuthStore } from './store/authStore';
+import { useGameStore } from './store/gameStore';
+import { useSessionStore } from './store/sessionStore';
+import { useUIStore, View } from './store/uiStore';
 
 function App() {
-  // Auth State
-  const [user, setUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<View>(View.LOGIN);
+  // Zustand Stores
+  const { user, isAuthenticated } = useAuthStore();
+  const { 
+    gameState, 
+    currentSong, 
+    progress, 
+    isZenMode, 
+    currentSessionId,
+    startTime,
+    setGameState, 
+    setCurrentSong, 
+    setProgress, 
+    toggleZenMode,
+    startSession,
+    resetGame,
+    finishSession,
+  } = useGameStore();
+  const { 
+    sessionLog, 
+    unsyncedLogs,
+    addLogEntry, 
+    clearLogs, 
+    syncLogs,
+    getSessionStats,
+  } = useSessionStore();
+  const { 
+    currentView, 
+    showCoach, 
+    setCurrentView, 
+    setShowCoach, 
+    toggleCoach 
+  } = useUIStore();
   
-  // Game/Audio State
+  // MIDI and Audio
   const { activeNotes, error: midiError } = useMidi();
   const { startAudio } = useAudio(activeNotes);
-  const [gameState, setGameState] = useState<GameState>(GameState.IDLE);
-  const [isZenMode, setIsZenMode] = useState(false);
-  const [showCoach, setShowCoach] = useState(false);
-  const [progress, setProgress] = useState(0);
-  
-  // Content State
-  const [currentSong, setCurrentSong] = useState<Song>(SAMPLE_SONG);
-
-  // Session Tracking
-  const sessionLog = useRef<MidiLogEntry[]>([]);
-  const unsyncedLogs = useRef<MidiLogEntry[]>([]); // For batching
-  const startTimeRef = useRef<number>(0);
-  const currentSessionId = useRef<string | null>(null);
-
-  // --- Auth Handlers ---
-  const handleLogin = (loggedInUser: User) => {
-    setUser(loggedInUser);
-    setCurrentView(View.DASHBOARD);
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setCurrentView(View.LOGIN);
-  };
 
   // --- Navigation Handlers ---
   const navigateToPractice = (song: Song = SAMPLE_SONG) => {
     setCurrentSong(song);
-    setGameState(GameState.IDLE);
-    sessionLog.current = [];
-    unsyncedLogs.current = [];
+    clearLogs();
     setShowCoach(false);
-    setProgress(0);
     setCurrentView(View.PRACTICE);
   };
 
   const navigateToDashboard = () => {
-    setGameState(GameState.IDLE);
+    resetGame();
     setCurrentView(View.DASHBOARD);
   };
 
   // --- Gameplay Handlers ---
   const handleStart = async () => {
     await startAudio();
-    startTimeRef.current = Date.now();
-    // In a real app, we might create the session ID here or at the end
-    // For streaming logs, we create it now (conceptually)
-    currentSessionId.current = crypto.randomUUID(); 
-    setGameState(GameState.PLAYING);
+    clearLogs();
+    startSession();
     setShowCoach(false);
-    sessionLog.current = []; 
-    unsyncedLogs.current = [];
   };
 
   const handlePause = () => setGameState(GameState.PAUSED);
+  
   const handleReset = () => {
-    setGameState(GameState.IDLE);
-    setProgress(0);
-    sessionLog.current = [];
-    unsyncedLogs.current = [];
+    resetGame();
+    clearLogs();
   };
 
   const handleSongComplete = useCallback(async () => {
-    setGameState(GameState.FINISHED);
+    finishSession();
     const endTime = Date.now();
     
-    // Calculate Stats locally
-    const logs = sessionLog.current;
-    const correct = logs.filter(l => l.isCorrect).length;
-    const accuracy = logs.length > 0 ? Math.round((correct / logs.length) * 100) : 0;
+    // Get stats from store
+    const stats = getSessionStats();
     
-    const velocities = logs.map(l => l.velocity || 0);
-    const avgVel = velocities.reduce((a, b) => a + b, 0) / (velocities.length || 1);
-
     // Final Save
-    if (user) {
+    if (user && currentSessionId) {
       await SessionService.saveSession({
         userId: user.id,
-        startTime: startTimeRef.current,
+        startTime: startTime,
         endTime,
         songTitle: currentSong.title,
-        accuracy,
-        totalNotes: logs.length,
-        averageVelocity: avgVel
-      }, logs);
+        accuracy: stats.accuracy,
+        totalNotes: stats.totalNotes,
+        averageVelocity: stats.averageVelocity
+      }, sessionLog);
+      
+      // Clear unsynced queue
+      clearLogs();
     }
-    
-    // Clear unsynced queue as they are sent in saveSession
-    unsyncedLogs.current = [];
 
     setShowCoach(true);
-  }, [user, currentSong]);
+  }, [user, currentSong, currentSessionId, startTime, sessionLog, finishSession, getSessionStats, clearLogs, setShowCoach]);
 
   const handleLogEntry = useCallback((entry: MidiLogEntry) => {
-    sessionLog.current.push(entry);
-    unsyncedLogs.current.push(entry);
-  }, []);
-
-  const toggleZen = () => setIsZenMode(!isZenMode);
+    addLogEntry(entry);
+  }, [addLogEntry]);
 
   // --- Batch Logging Effect ---
   useEffect(() => {
     const interval = setInterval(() => {
-        if (gameState === GameState.PLAYING && unsyncedLogs.current.length > 0 && currentSessionId.current) {
-            const batch = [...unsyncedLogs.current];
-            unsyncedLogs.current = []; // Clear buffer
-            
-            // Send batch to server (Fire and forget)
-            if (currentSessionId.current) {
-                SessionService.syncLogs(currentSessionId.current, batch);
-            }
+        if (gameState === GameState.PLAYING && unsyncedLogs.length > 0 && currentSessionId) {
+            syncLogs(currentSessionId);
         }
     }, 30000); // 30 Seconds
 
     return () => clearInterval(interval);
-  }, [gameState]);
-
+  }, [gameState, unsyncedLogs, currentSessionId, syncLogs]);
 
   // --- RENDER ROUTER ---
   
   if (currentView === View.LOGIN) {
-    return <Login onLogin={handleLogin} />;
+    return <Login />;
   }
 
   if (currentView === View.DASHBOARD && user) {
@@ -163,13 +141,12 @@ function App() {
              <button onClick={() => navigateToPractice(SAMPLE_SONG)} className="px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-600 text-sm">
                 Free Practice
              </button>
-             <button onClick={handleLogout} className="text-slate-400 hover:text-white text-sm">
+             <button onClick={() => useAuthStore.getState().logout()} className="text-slate-400 hover:text-white text-sm">
                Log Out
              </button>
           </div>
         </header>
         <Dashboard 
-          user={user} 
           onPlaySong={navigateToPractice}
           onPlayExercise={navigateToPractice}
         />
@@ -226,7 +203,7 @@ function App() {
              </button>
              
              <button 
-               onClick={toggleZen} 
+               onClick={toggleZenMode} 
                className="p-2 text-slate-400 hover:text-white transition-colors"
                title="Enter Zen Mode"
              >
@@ -239,7 +216,7 @@ function App() {
       {/* ZEN TOGGLE OVERLAY */}
       {isZenMode && (
         <div className="absolute top-4 right-4 z-50 opacity-0 hover:opacity-100 transition-opacity">
-           <button onClick={toggleZen} className="p-3 bg-slate-800/80 backdrop-blur rounded-full text-white">
+           <button onClick={toggleZenMode} className="p-3 bg-slate-800/80 backdrop-blur rounded-full text-white">
              <Minimize2 size={24} />
            </button>
         </div>
@@ -270,7 +247,7 @@ function App() {
             <Piano activeNotes={activeNotes} />
          </div>
 
-         <Coach log={sessionLog.current} isVisible={showCoach && !isZenMode} />
+         <Coach log={sessionLog} isVisible={showCoach && !isZenMode} />
       </main>
       
       <div className="h-1 bg-slate-800 w-full">

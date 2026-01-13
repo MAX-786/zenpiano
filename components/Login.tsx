@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { AuthService } from '../services/db';
-import { User } from '../types';
 import { KeyRound, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
+import { useUIStore, View } from '../store/uiStore';
 
-interface LoginProps {
-  onLogin: (user: User) => void;
-}
-
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  const login = useAuthStore((state) => state.login);
+  const setCurrentView = useUIStore((state) => state.setCurrentView);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,8 +19,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     
     setLoading(true);
     try {
-      const user = await AuthService.login(username, password);
-      onLogin(user);
+      const response = await AuthService.login(username, password);
+      login(response.user, response.token);
+      setCurrentView(View.DASHBOARD);
     } catch (error) {
       console.error(error);
     } finally {
