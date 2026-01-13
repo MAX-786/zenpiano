@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { User, Session, Song } from '../types';
-import { SessionService } from '../services/db';
+import { SessionService, TokenService } from '../services/db';
 import { generatePredictiveExercise } from '../services/geminiService';
-import { Activity, Clock, Target, Play, Brain, BarChart3 } from 'lucide-react';
+import { Activity, Clock, Target, Play, Brain, BarChart3, Zap, TrendingUp } from 'lucide-react';
 
 interface DashboardProps {
   user: User;
@@ -12,12 +12,17 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onPlaySong, onPlayExercise }) => {
   const [stats, setStats] = useState<any>(null);
+  const [tokenStats, setTokenStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
-    SessionService.getUserStats(user.id).then(data => {
-      setStats(data);
+    Promise.all([
+      SessionService.getUserStats(user.id),
+      TokenService.getStats(user.id)
+    ]).then(([sessionData, tokenData]) => {
+      setStats(sessionData);
+      setTokenStats(tokenData);
       setLoading(false);
     });
   }, [user.id]);
@@ -80,6 +85,89 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onPlaySong, onPlayExercise 
               <p className="text-slate-400 text-sm">Sessions</p>
               <h3 className="text-2xl font-bold">{stats.totalSessions}</h3>
             </div>
+          </div>
+        </div>
+
+        {/* Token Usage Stats - NEW! */}
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 mb-10">
+          <div className="flex items-center gap-2 mb-6">
+            <Zap size={20} className="text-yellow-400" />
+            <h3 className="font-semibold text-lg">AI Token Usage</h3>
+            <span className="ml-auto text-xs text-slate-400">Powered by Gemini 3.0 Flash</span>
+          </div>
+
+          {tokenStats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Today */}
+              <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-slate-400 text-sm">Today</p>
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                </div>
+                <h4 className="text-2xl font-bold text-white mb-1">
+                  {tokenStats.today.totalTokens.toLocaleString()}
+                </h4>
+                <div className="text-xs text-slate-500 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Prompt:</span>
+                    <span className="text-cyan-400">{tokenStats.today.promptTokens}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Response:</span>
+                    <span className="text-pink-400">{tokenStats.today.candidatesTokens}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* This Month */}
+              <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-slate-400 text-sm">This Month</p>
+                  <TrendingUp size={14} className="text-blue-400" />
+                </div>
+                <h4 className="text-2xl font-bold text-white mb-1">
+                  {tokenStats.thisMonth.totalTokens.toLocaleString()}
+                </h4>
+                <div className="text-xs text-slate-500 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Prompt:</span>
+                    <span className="text-cyan-400">{tokenStats.thisMonth.promptTokens.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Response:</span>
+                    <span className="text-pink-400">{tokenStats.thisMonth.candidatesTokens.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Last 30 Days */}
+              <div className="bg-gradient-to-br from-slate-900/50 to-purple-900/20 p-4 rounded-lg border border-purple-700/50">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-slate-400 text-sm">Last 30 Days</p>
+                  <Brain size={14} className="text-purple-400" />
+                </div>
+                <h4 className="text-2xl font-bold text-white mb-1">
+                  {tokenStats.last30Days.totalTokens.toLocaleString()}
+                </h4>
+                <div className="text-xs text-slate-500 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Prompt:</span>
+                    <span className="text-cyan-400">{tokenStats.last30Days.promptTokens.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Response:</span>
+                    <span className="text-pink-400">{tokenStats.last30Days.candidatesTokens.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 p-3 bg-slate-900/30 rounded-lg border border-slate-700/50">
+            <p className="text-xs text-slate-400 flex items-center gap-2">
+              <span className="text-yellow-400">💡</span>
+              Token tracking helps you understand AI resource usage. Each AI coaching session and exercise generation consumes tokens.
+            </p>
           </div>
         </div>
 

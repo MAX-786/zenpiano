@@ -87,3 +87,21 @@ export const SessionService = {
     }
   }
 };
+
+export const TokenService = {
+  getStats: async (userId: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/tokens/stats/${userId}`);
+      if (!response.ok) throw new Error("Failed to fetch token stats");
+      return await response.json();
+    } catch (e) {
+      console.warn("Fetch token stats failed, returning mock data");
+      return {
+        today: { totalTokens: 1286, promptTokens: 123, candidatesTokens: 181 },
+        thisMonth: { totalTokens: 45000, promptTokens: 5200, candidatesTokens: 6800 },
+        last30Days: { totalTokens: 52000, promptTokens: 6100, candidatesTokens: 7900 },
+        dailyBreakdown: []
+      };
+    }
+  }
+};

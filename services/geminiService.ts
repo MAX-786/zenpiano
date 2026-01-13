@@ -4,6 +4,27 @@ import { CoachInsight, MidiLogEntry, Song, Note } from "../types";
 const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
+// Helper function to log token usage
+const logTokenUsage = async (usageMetadata: any) => {
+  try {
+    const userId = localStorage.getItem('userId') || 'demo-user-id';
+    
+    await fetch('/api/tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        promptTokens: usageMetadata.promptTokenCount || 0,
+        candidatesTokens: usageMetadata.candidatesTokenCount || 0,
+        totalTokens: usageMetadata.totalTokenCount || 0,
+        modelVersion: 'gemini-3-flash-preview'
+      })
+    });
+  } catch (error) {
+    console.error('Failed to log token usage:', error);
+  }
+};
+
 export const generatePracticeInsights = async (midiLog: MidiLogEntry[]): Promise<CoachInsight> => {
   if (!midiLog || midiLog.length === 0) {
     throw new Error("No practice data available.");
@@ -54,6 +75,11 @@ export const generatePracticeInsights = async (midiLog: MidiLogEntry[]): Promise
 
     const text = response.text;
     if (!text) throw new Error("No response from AI");
+    
+    // Log token usage
+    if (response.usageMetadata) {
+      await logTokenUsage(response.usageMetadata);
+    }
     
     return JSON.parse(text) as CoachInsight;
   } catch (error) {
@@ -117,6 +143,11 @@ export const generatePredictiveExercise = async (troubleNotes: number[]): Promis
 
     const text = response.text;
     if (!text) throw new Error("No exercise generated");
+    
+    // Log token usage
+    if (response.usageMetadata) {
+      await logTokenUsage(response.usageMetadata);
+    }
     
     return JSON.parse(text) as Song;
   } catch (e) {

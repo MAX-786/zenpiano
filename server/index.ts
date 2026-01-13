@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.ts';
 import sessionRoutes from './routes/sessions.ts';
 import logRoutes from './routes/logs.ts';
 import userRoutes from './routes/users.ts';
+import tokenRoutes from './routes/tokens.ts';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/tokens', tokenRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
