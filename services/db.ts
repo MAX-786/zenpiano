@@ -4,12 +4,12 @@ import { User, Session, MidiLogEntry } from '../types';
 const API_BASE = '/api'; 
 
 export const AuthService = {
-  login: async (username: string): Promise<User> => {
+  login: async (username: string, password: string): Promise<User> => {
     try {
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password: 'demo-password' }) // Simulating password for demo
+        body: JSON.stringify({ username, password })
       });
       
       if (!response.ok) {

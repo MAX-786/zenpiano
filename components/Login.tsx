@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AuthService } from '../services/db';
 import { User } from '../types';
-import { KeyRound, ArrowRight } from 'lucide-react';
+import { KeyRound, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -9,6 +9,8 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -17,7 +19,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     
     setLoading(true);
     try {
-      const user = await AuthService.login(username);
+      const user = await AuthService.login(username, password);
       onLogin(user);
     } catch (error) {
       console.error(error);
@@ -50,6 +52,29 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               placeholder="Enter your name..."
               autoFocus
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 pr-10 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                placeholder="Enter your password..."
+                aria-label="Password"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                aria-pressed={showPassword}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
           
           <button
