@@ -338,8 +338,8 @@ function App() {
       )}
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 relative flex flex-col">
-         <div className="flex-1 relative">
+      <main className="flex-1 relative flex flex-col overflow-hidden min-h-0">
+         <div className="flex-1 relative min-h-0">
             <Visualizer 
               song={currentSong}
               activeNotes={activeNotes}
@@ -359,7 +359,7 @@ function App() {
             )}
          </div>
 
-         <div className="flex-shrink-0 z-30">
+         <div className="flex-shrink-0 z-30 h-32">
             <Piano 
               activeNotes={activeNotes}
               showLabels={showPianoLabels}
