@@ -1,6 +1,16 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Types } from 'mongoose';
 
-const SessionSchema = new mongoose.Schema({
+export interface ISession extends Document {
+  userId: Types.ObjectId;
+  startTime: number;
+  endTime: number;
+  songTitle: string;
+  accuracy: number;
+  totalNotes: number;
+  averageVelocity: number;
+}
+
+const SessionSchema = new mongoose.Schema<ISession>({
   userId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
@@ -14,4 +24,5 @@ const SessionSchema = new mongoose.Schema({
   averageVelocity: { type: Number, default: 0 },
 });
 
-export default mongoose.models.Session || mongoose.model('Session', SessionSchema);
+const Session: Model<ISession> = mongoose.models.Session || mongoose.model<ISession>('Session', SessionSchema);
+export default Session;

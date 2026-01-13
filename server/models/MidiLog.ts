@@ -1,6 +1,16 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Types } from 'mongoose';
 
-const MidiLogSchema = new mongoose.Schema({
+export interface IMidiLog extends Document {
+  sessionId: Types.ObjectId;
+  timestamp: Date;
+  note: number;
+  expectedNote?: number;
+  isCorrect: boolean;
+  velocity?: number;
+  timeGap?: number;
+}
+
+const MidiLogSchema = new mongoose.Schema<IMidiLog>({
   sessionId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Session', 
@@ -21,4 +31,5 @@ const MidiLogSchema = new mongoose.Schema({
   }
 });
 
-export default mongoose.models.MidiLog || mongoose.model('MidiLog', MidiLogSchema);
+const MidiLog: Model<IMidiLog> = mongoose.models.MidiLog || mongoose.model<IMidiLog>('MidiLog', MidiLogSchema);
+export default MidiLog;

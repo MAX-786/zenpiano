@@ -1,6 +1,13 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model } from 'mongoose';
 
-const UserSchema = new mongoose.Schema({
+export interface IUser extends Document {
+  username: string;
+  password: string;
+  skillLevel: 'Beginner' | 'Intermediate' | 'Advanced';
+  createdAt: Date;
+}
+
+const UserSchema = new mongoose.Schema<IUser>({
   username: { 
     type: String, 
     required: [true, 'Please provide a username'], 
@@ -23,4 +30,5 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
-export default mongoose.models.User || mongoose.model('User', UserSchema);
+const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+export default User;

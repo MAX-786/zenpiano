@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "npm run dev --prefix server",
+    "dev:all": "npm run dev:server & npm run dev",
     "build": "vite build",
     "preview": "vite preview"
   },
